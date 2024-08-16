@@ -1,4 +1,4 @@
-#!/Users/rterry/repos/personal/Raycast/bin/python3
+#!./bin/python3
 
 # Required parameters:
 # @raycast.schemaVersion 1

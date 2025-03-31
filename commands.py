@@ -9,7 +9,7 @@
 
 # Optional parameters:
 # @raycast.icon 🤖
-# @raycast.argument1 { "type": "text", "placeholder": "command (e.g. fang, defang, upper, lower)" }
+# @raycast.argument1 { "type": "text", "placeholder": "command (e.g. fang, defang, upper, lower)"}
 
 # raycast modes: silent, inline, fullOutput
 
@@ -171,7 +171,13 @@ def decode_base64(encoded_data: str) -> str:
     Returns:
         str: The decoded string.
     """
-    return base64.b64decode(encoded_data.encode('utf-8')).decode('utf-8')
+    # Add padding if necessary
+    encoded_data += '=' * ((4 - len(encoded_data) % 4) % 4)
+    try:
+        return base64.b64decode(encoded_data.encode('utf-8')).decode('utf-8')
+    except UnicodeDecodeError:
+        # If UTF-8 decoding fails, return the raw bytes
+        return base64.b64decode(encoded_data).decode('latin-1')
 
 @command(shortcut='ue')
 def encode_url(url):
@@ -188,20 +194,20 @@ def decode_url(url):
     """
     return urllib.parse.unquote(url)
 
-@command(shortcut='pie')
-def encode_phishing_indicator(text):
+@command(shortcut='ei')
+def encode_indicator(text):
     """
-    Encodes the given text to be used as a phishing indicator.
+    Performs specific encoding for an indicator
     """
 
-    text = text.replace(" ", "+")
     text = encode_url(text)
+    text = text.replace("%20", "+")
     return text
 
-@command(shortcut='pid')
-def decode_phishing_indicator(text):
+@command(shortcut='di')
+def decode_indicator(text):
     """
-    Encodes the given text to be used as a phishing indicator.
+    Performs specific decoding for an indicator
     """
 
     text = decode_url(text)
@@ -209,17 +215,127 @@ def decode_phishing_indicator(text):
 
     return text
 
+@command(shortcut="vtu")
+def virustotal_url(url):
+    """
+    Returns the VirusTotal report for the given URL.
+    """
+    import credentials
+    import requests
+
+    body = {
+        "url": url
+    }
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/x-www-form-urlencoded",
+        "x-apikey": credentials.VTapikey
+    }
+
+    response = requests.post("https://www.virustotal.com/api/v3/urls", json=body, headers=headers)
+    if response.status_code != 200:
+        return f"{response.status_code} Error checking URL in VT"
+
+    url = response.json()["data"]["links"]["self"]
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return "Error getting URL Analysis from VT"
+
+    stats = response.json()["data"]["attributes"]["stats"]
+    return f"""malicious: {stats["malicious"]},
+suspicious: {stats["suspicious"]},
+harmless: {stats["harmless"]},
+undetected: {stats["undetected"]},
+timeout: {stats["timeout"]}"""
+
+@command(shortcut='vti')
+def virustotal_ip(ip):
+    """
+    Returns the VirusTotal report for the given IP.
+    """
+    import credentials
+    import requests
+
+    url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
+
+    headers = {
+        "accept": "application/json",
+        "x-apikey": credentials.VTapikey
+    }
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return f"{response.status_code} Error checking IP in VT"
+
+    stats = response.json()["data"]["attributes"]["last_analysis_stats"]
+    return f"""malicious: {stats["malicious"]},
+suspicious: {stats["suspicious"]},
+harmless: {stats["harmless"]},
+undetected: {stats["undetected"]},
+timeout: {stats["timeout"]}"""
+
+@command(shortcut='ipi')
+def ipinfo_ip(ip):
+    """
+    Returns the IPInfo report for the given IP.
+    """
+    import requests
+    url = f"https://ipinfo.io/widget/demo/{ip}"
+
+    headers = {
+        "content-type": "application/json"
+    }
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return f"{response.status_code} Error checking IP in IPInfo"
+    data = response.json()["data"]
+    return f"""ip: {data["ip"]},
+city: {data["city"]},
+region: {data["region"]},
+country: {data["country"]},
+loc: {data["loc"]},
+org: {data["org"]}
+company: {data["company"]}
+privacy: {data["privacy"]}
+asn: {data["asn"]}
+"""
+
+@command(shortcut='rw')
+def remove_whitespace(text):
+    """
+    changing "    TEXT " to "TEXT"
+    """
+
+    return text.replace(" ", "")
+
+
+@command(shortcut='cl')
+def comma_list(text):
+    """
+    changing
+    "TEXT
+    TEXT
+    TEXT" to
+    "TEXT,TEXT,TEXT"
+    """
+    # Replace newlines with commas
+    modified_text = text.replace('\n', ',')
+
+    # Update the clipboard with the modified text
+    return modified_text
+
 @command(shortcut='h')
 def help(parameter=None):
     """
     Returns a list of valid commands.
     """
 
-    return "Valid commands are: " + ", ".join(valid_commands.keys()) + "." \
-            "\n\nShortcuts are: " + ", ".join(shortcuts.keys()) + "."
+    return "Valid commands/shortcuts are: " + ", ".join(valid_commands.keys()) + "."
 
 def main():
-    command = sys.argv[1]
+    command = sys.argv[1].strip()
     clipboard = pyperclip.paste().strip()
     if command in valid_commands:
         clipboard = valid_commands[command](clipboard)

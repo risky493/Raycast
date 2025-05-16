@@ -308,7 +308,7 @@ def remove_whitespace(text):
     changing "    TEXT " to "TEXT"
     """
 
-    return text.replace(" ", "")
+    return text.replace(" ", "").replace("\n\n", "\n")
 
 
 @command(shortcut='cl')
@@ -325,6 +325,33 @@ def comma_list(text):
 
     # Update the clipboard with the modified text
     return modified_text
+
+@command(shortcut='ucl')
+def uncomma_list(text):
+    """
+    changing
+    "TEXT,TEXT,TEXT" to
+    "TEXT
+    TEXT
+    TEXT"""
+
+    return remove_whitespace(text).replace(",", "\n")
+
+@command(shortcut='who')
+def whois(domain):
+    """
+    Returns the whois information for the given domain.
+    """
+    import whois
+
+    domain = "bookstoreresults.com"
+    try:
+        domain_info = whois.whois(domain)
+    except Exception as e:
+        return f"Error getting whois information for {domain}: {e}"
+
+    return domain_info
+
 
 @command(shortcut='h')
 def help(parameter=None):

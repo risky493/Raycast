@@ -291,16 +291,10 @@ def ipinfo_ip(ip):
     if response.status_code != 200:
         return f"{response.status_code} Error checking IP in IPInfo"
     data = response.json()["data"]
-    return f"""ip: {data["ip"]},
-city: {data["city"]},
-region: {data["region"]},
-country: {data["country"]},
-loc: {data["loc"]},
-org: {data["org"]}
-company: {data["company"]}
-privacy: {data["privacy"]}
-asn: {data["asn"]}
-"""
+    output = ""
+    for key, value in data.items():
+        output += f"{key}: {value}\n"
+    return output
 
 @command(shortcut='rw')
 def remove_whitespace(text):
@@ -344,7 +338,6 @@ def whois(domain):
     """
     import whois
 
-    domain = "bookstoreresults.com"
     try:
         domain_info = whois.whois(domain)
     except Exception as e:
@@ -365,7 +358,10 @@ def main():
     command = sys.argv[1].strip()
     clipboard = pyperclip.paste().strip()
     if command in valid_commands:
-        clipboard = valid_commands[command](clipboard)
+        try:
+            clipboard = valid_commands[command](clipboard)
+        except Exception as e:
+            clipboard = f"Error running command {command}: {e}"
     else:
         clipboard = f"Invalid command: {command}"
     pyperclip.copy(clipboard)
